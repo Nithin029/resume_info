@@ -119,6 +119,7 @@ async def response_async(message: str, model: str = "llama3-70b-8192", SysPrompt
 
 
 async def extract_content_async(file_content: bytes, file_type: str) -> List[str]:
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
     def extract_text_from_image(image: Image.Image) -> str:
         try:
             return pytesseract.image_to_string(image)
