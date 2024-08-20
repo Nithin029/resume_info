@@ -16,6 +16,7 @@ from PIL import Image
 import re
 import tiktoken
 import time
+import zipfile
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -267,18 +268,29 @@ async def process_files_in_directory_async(directory):
 def main():
     st.title("Resume Batch Processing")
 
-    directory = st.text_input("Enter the directory containing resumes:")
+    uploaded_file = st.file_uploader("Upload a folder (as a ZIP file):", type=["zip"])
 
-    if st.button("Process Resumes"):
-        if directory and os.path.isdir(directory):
-            try:
-                asyncio.run(process_files_in_directory_async(directory))
-            except Exception as e:
-                st.error(f"An error occurred during processing: {e}")
-                logger.exception("An error occurred during processing")
-        else:
-            st.warning("Please select a valid directory.")
+    if uploaded_file is not None:
+        try:
+            # Save the uploaded ZIP file temporarily
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(uploaded_file.getvalue())
+                zip_path = tmp_file.name
 
+            # Extract the ZIP file contents
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                extract_dir = tempfile.mkdtemp()
+                zip_ref.extractall(extract_dir)
+
+            st.write("Files extracted successfully. Processing...")
+
+            asyncio.run(process_files_in_directory_async(extract_dir))
+
+        except Exception as e:
+            st.error(f"An error occurred during processing: {e}")
+            logger.exception("An error occurred during processing")
+    else:
+        st.warning("Please upload a ZIP file containing the resumes.")
 
 if __name__ == "__main__":
     main()
