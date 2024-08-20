@@ -4,6 +4,7 @@ import aiopg
 import hashlib
 import json
 import aiofiles
+import tempfile
 import streamlit as st
 from typing import List
 from openai import AsyncOpenAI
