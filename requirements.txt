@@ -13,3 +13,5 @@ aiopg
 aiohttp
 tiktoken
 tenacity
+aiomysql
+mysqlclient
