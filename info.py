@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 host_name = os.getenv("host_name")
-user = os.getenv("user")
+user = os.getenv("user_name")
 password = os.getenv("password")
 SysPromptDefault = "You are now in the role of an expert AI."
 
