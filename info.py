@@ -14,6 +14,7 @@ from docx import Document
 import io
 import pytesseract
 from PIL import Image
+import aiomysql
 import re
 import tiktoken
 import time
