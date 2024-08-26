@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+host_name = os.getenv("host_name")
+user = os.getenv("user")
+password = os.getenv("password")
 SysPromptDefault = "You are now in the role of an expert AI."
 
 # Load prompts from file
@@ -52,8 +55,11 @@ def get_digest(content):
 
 async def get_db_pool():
     try:
-        return await aiopg.create_pool(
-            dsn="dbname='postgres' user='postgres.rrjupfnfhyikdeitbktn' password='nI20th0in3@' host='aws-0-us-east-1.pooler.supabase.com' port='6543'"
+        return await aiomysql.create_pool(
+            host=host_name,
+            user=user,
+            password=password,
+            db='medichire_dev'
         )
     except Exception as e:
         logger.error(f"Failed to create database pool: {e}")
@@ -160,17 +166,53 @@ async def extract_content_async(file_content: bytes, file_type: str) -> List[str
         return []
 
 
+def replace_empty(value):
+    """Replace empty strings and empty lists with None."""
+    if value in ['', [], {}] or value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            # Attempt to parse stringified lists/dictionaries and check if they are empty
+            parsed_value = json.loads(value)
+            if isinstance(parsed_value, (list, dict)) and not parsed_value:
+                return None
+        except (ValueError, json.JSONDecodeError):
+            pass
+    return value
+
 async def insert_data_resume_async(file_name, file_id, resume):
     try:
         async with await get_db_pool() as pool:
             async with pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    resume_json = json.dumps(resume)
+                    # Extract the required fields from the resume JSON
+                    resume_data = json.loads(resume)
+                    
+                    # Replace empty fields with None
+                    name = replace_empty(resume_data.get('name', None))
+                    email = replace_empty(resume_data.get('email', None))
+                    phone = replace_empty(resume_data.get('phone', None))
+                    location = replace_empty(resume_data.get('location', None))
+                    work_experience = replace_empty(resume_data.get('work_experience', None))
+                    current_designation = replace_empty(resume_data.get('current_designation', None))
+                    achievements_certifications = replace_empty(resume_data.get('achievements_certifications', None))
+
                     await cur.execute("""
-                        INSERT INTO resume_info(file_id, file_name, resume_parse)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (file_id) DO NOTHING;
-                    """, (file_id, file_name, resume_json))
+                        INSERT INTO resume_info(
+                            file_id, file_name, name, email, phone, location, work_experience, 
+                            current_designation, achievements_certifications
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE 
+                            file_name = VALUES(file_name),
+                            name = VALUES(name),
+                            email = VALUES(email),
+                            phone = VALUES(phone),
+                            location = VALUES(location),
+                            work_experience = VALUES(work_experience),
+                            current_designation = VALUES(current_designation),
+                            achievements_certifications = VALUES(achievements_certifications);
+                    """, (file_id, file_name, name, email, phone, location, work_experience, current_designation, achievements_certifications))
     except Exception as e:
         logger.error(f"Error inserting data into database: {e}")
         raise
